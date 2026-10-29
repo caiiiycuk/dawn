@@ -4384,5 +4384,177 @@ $B1: {  # root
 )");
 }
 
+
+TEST_F(SpirvReaderTest, Handle_Image_TexelBuffer_Fetch) {
+    EXPECT_IR(R"(
+           OpCapability Shader
+           OpCapability SampledBuffer
+           OpMemoryModel Logical GLSL450
+           OpEntryPoint GLCompute %main "main"
+           OpExecutionMode %main LocalSize 1 1 1
+           OpName %10 "tb"
+           OpDecorate %10 DescriptorSet 0
+           OpDecorate %10 Binding 0
+  %float = OpTypeFloat 32
+%v4float = OpTypeVector %float 4
+    %int = OpTypeInt 32 1
+  %int_3 = OpConstant %int 3
+    %tex = OpTypeImage %float Buffer 0 0 0 1 Rgba32f
+%ptr_tex = OpTypePointer UniformConstant %tex
+   %void = OpTypeVoid
+ %voidfn = OpTypeFunction %void
+     %10 = OpVariable %ptr_tex UniformConstant
+   %main = OpFunction %void None %voidfn
+  %entry = OpLabel
+     %ld = OpLoad %tex %10
+      %v = OpImageFetch %v4float %ld %int_3
+           OpReturn
+           OpFunctionEnd
+        )",
+              R"(
+$B1: {  # root
+  %tb:ptr<handle, texel_buffer<rgba32float, read>, read> = var @binding_point(0, 0)
+}
+
+%main = @compute @workgroup_size(1u, 1u, 1u) func():void {
+  $B2: {
+    %3:texel_buffer<rgba32float, read> = load %tb
+    %4:vec4<f32> = textureLoad %3, 3i
+    ret
+  }
+}
+)");
+}
+
+TEST_F(SpirvReaderTest, Handle_Image_TexelBuffer_UnknownFormat_Uint) {
+    EXPECT_IR(R"(
+           OpCapability Shader
+           OpCapability SampledBuffer
+           OpMemoryModel Logical GLSL450
+           OpEntryPoint GLCompute %main "main"
+           OpExecutionMode %main LocalSize 1 1 1
+           OpName %10 "tb"
+           OpDecorate %10 DescriptorSet 0
+           OpDecorate %10 Binding 0
+   %uint = OpTypeInt 32 0
+ %v4uint = OpTypeVector %uint 4
+ %uint_3 = OpConstant %uint 3
+    %tex = OpTypeImage %uint Buffer 0 0 0 1 Unknown
+%ptr_tex = OpTypePointer UniformConstant %tex
+   %void = OpTypeVoid
+ %voidfn = OpTypeFunction %void
+     %10 = OpVariable %ptr_tex UniformConstant
+   %main = OpFunction %void None %voidfn
+  %entry = OpLabel
+     %ld = OpLoad %tex %10
+      %v = OpImageFetch %v4uint %ld %uint_3
+           OpReturn
+           OpFunctionEnd
+        )",
+              R"(
+$B1: {  # root
+  %tb:ptr<handle, texel_buffer<rgba32uint, read>, read> = var @binding_point(0, 0)
+}
+
+%main = @compute @workgroup_size(1u, 1u, 1u) func():void {
+  $B2: {
+    %3:texel_buffer<rgba32uint, read> = load %tb
+    %4:vec4<u32> = textureLoad %3, 3u
+    ret
+  }
+}
+)");
+}
+
+TEST_F(SpirvReaderTest, Handle_Image_TexelBuffer_WriteOnly) {
+    EXPECT_IR(R"(
+           OpCapability Shader
+           OpCapability ImageBuffer
+           OpMemoryModel Logical GLSL450
+           OpEntryPoint GLCompute %main "main"
+           OpExecutionMode %main LocalSize 1 1 1
+           OpName %10 "tb"
+           OpDecorate %10 DescriptorSet 0
+           OpDecorate %10 Binding 0
+           OpDecorate %10 NonReadable
+   %uint = OpTypeInt 32 0
+ %v4uint = OpTypeVector %uint 4
+ %uint_1 = OpConstant %uint 1
+ %uint_7 = OpConstant %uint 7
+  %texel = OpConstantComposite %v4uint %uint_7 %uint_7 %uint_7 %uint_7
+    %tex = OpTypeImage %uint Buffer 0 0 0 2 R32ui
+%ptr_tex = OpTypePointer UniformConstant %tex
+   %void = OpTypeVoid
+ %voidfn = OpTypeFunction %void
+     %10 = OpVariable %ptr_tex UniformConstant
+   %main = OpFunction %void None %voidfn
+  %entry = OpLabel
+     %ld = OpLoad %tex %10
+           OpImageWrite %ld %uint_1 %texel
+           OpReturn
+           OpFunctionEnd
+        )",
+              R"(
+$B1: {  # root
+  %tb:ptr<handle, texel_buffer<r32uint, read_write>, read> = var @binding_point(0, 0)
+}
+
+%main = @compute @workgroup_size(1u, 1u, 1u) func():void {
+  $B2: {
+    %3:texel_buffer<r32uint, read_write> = load %tb
+    %4:void = textureStore %3, 1u, vec4<u32>(7u)
+    ret
+  }
+}
+)");
+}
+
+TEST_F(SpirvReaderTest, Handle_Image_TexelBuffer_ReadWrite_QuerySize) {
+    EXPECT_IR(R"(
+           OpCapability Shader
+           OpCapability ImageBuffer
+           OpCapability ImageQuery
+           OpMemoryModel Logical GLSL450
+           OpEntryPoint GLCompute %main "main"
+           OpExecutionMode %main LocalSize 1 1 1
+           OpName %10 "tb"
+           OpDecorate %10 DescriptorSet 0
+           OpDecorate %10 Binding 0
+   %uint = OpTypeInt 32 0
+    %int = OpTypeInt 32 1
+ %v4uint = OpTypeVector %uint 4
+ %uint_1 = OpConstant %uint 1
+    %tex = OpTypeImage %uint Buffer 0 0 0 2 R32ui
+%ptr_tex = OpTypePointer UniformConstant %tex
+   %void = OpTypeVoid
+ %voidfn = OpTypeFunction %void
+     %10 = OpVariable %ptr_tex UniformConstant
+   %main = OpFunction %void None %voidfn
+  %entry = OpLabel
+     %ld = OpLoad %tex %10
+      %v = OpImageRead %v4uint %ld %uint_1
+           OpImageWrite %ld %uint_1 %v
+      %s = OpImageQuerySize %int %ld
+           OpReturn
+           OpFunctionEnd
+        )",
+              R"(
+$B1: {  # root
+  %tb:ptr<handle, texel_buffer<r32uint, read_write>, read> = var @binding_point(0, 0)
+}
+
+%main = @compute @workgroup_size(1u, 1u, 1u) func():void {
+  $B2: {
+    %3:texel_buffer<r32uint, read_write> = load %tb
+    %4:vec4<u32> = textureLoad %3, 1u
+    %5:void = textureStore %3, 1u, %4
+    %6:u32 = textureDimensions %3
+    %7:i32 = convert %6
+    ret
+  }
+}
+)");
+}
+
 }  // namespace
 }  // namespace tint::spirv::reader

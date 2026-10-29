@@ -82,6 +82,7 @@
 #include "src/tint/lang/core/type/reference.h"
 #include "src/tint/lang/core/type/sampler.h"
 #include "src/tint/lang/core/type/storage_texture.h"
+#include "src/tint/lang/core/type/texel_buffer.h"
 #include "src/tint/lang/core/type/string.h"
 #include "src/tint/lang/core/type/type.h"
 #include "src/tint/lang/wgsl/ast/interpolated_string_expression.h"
@@ -1092,6 +1093,9 @@ class State {
             },
             [&](const core::type::StorageTexture* t) {
                 return b.ty.storage_texture(t->Dim(), t->TexelFormat(), t->Access());
+            },
+            [&](const core::type::TexelBuffer* t) {
+                return b.ty.texel_buffer(t->TexelFormat(), t->Access());
             },
             [&](const core::type::Sampler* s) { return b.ty.sampler(s->Kind()); },
             [&](const core::type::Pointer* p) {

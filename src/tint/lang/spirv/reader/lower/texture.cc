@@ -37,6 +37,7 @@
 #include "src/tint/lang/core/ir/validator/validate.h"
 #include "src/tint/lang/core/type/sampled_texture.h"
 #include "src/tint/lang/core/type/storage_texture.h"
+#include "src/tint/lang/core/type/texel_buffer.h"
 #include "src/tint/lang/spirv/builtin_fn.h"
 #include "src/tint/lang/spirv/ir/builtin_call.h"
 #include "src/tint/lang/spirv/type/image.h"
@@ -709,10 +710,10 @@ struct State {
                 }
                 new_args.Push(lod);
             } else if (!tex_ty->IsAnyOf<core::type::DepthMultisampledTexture,
-                                        core::type::MultisampledTexture,
-                                        core::type::StorageTexture>()) {
+                                        core::type::MultisampledTexture, core::type::StorageTexture,
+                                        core::type::TexelBuffer>()) {
                 // textureLoad requires an explicit level-of-detail parameter for non-multisampled
-                // and non-storage texture types.
+                // and non-storage texture types (texel buffers have no mip levels either).
                 new_args.Push(b.Zero(ty.i32()));
             }
             if (HasSample(operand_mask)) {
@@ -1056,6 +1057,23 @@ struct State {
     const core::type::Type* TypeForImage(const spirv::type::Image* img) {
         if (img->GetDim() == spirv::type::Dim::kSubpassData) {
             return ty.input_attachment(img->GetSampledType());
+        }
+
+        if (img->GetDim() == spirv::type::Dim::kBuffer) {
+            // A Buffer image is a WGSL texel buffer. A sampled (uniform texel) buffer is read-only; a
+            // storage (image) buffer keeps the access its decorations gave it, write-only becoming
+            // read_write because WGSL has no write-only texel buffer. An Unknown format (DXC leaves
+            // it so for `Buffer<T>`) takes the 32-bit format of the sampled type.
+            auto format = img->GetTexelFormat();
+            if (format == core::TexelFormat::kUndefined) {
+                auto* sampled = img->GetSampledType();
+                format = sampled->Is<core::type::U32>()   ? core::TexelFormat::kRgba32Uint
+                         : sampled->Is<core::type::I32>() ? core::TexelFormat::kRgba32Sint
+                                                          : core::TexelFormat::kRgba32Float;
+            }
+            bool read_only = img->GetSampled() == spirv::type::Sampled::kSamplingCompatible ||
+                             img->GetAccess() == core::Access::kRead;
+            return ty.texel_buffer(format, read_only ? core::Access::kRead : core::Access::kReadWrite);
         }
 
         if (img->GetSampled() == spirv::type::Sampled::kReadWriteOpCompatible) {

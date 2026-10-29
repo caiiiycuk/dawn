@@ -321,6 +321,11 @@ fn image_fetch(image: image<T, dim_1d, non_depth, non_arrayed, single_sampled, s
                image_operands: literal) -> vec4<T>
 
 implicit(T: fiu32, C: iu32, F: texel_format)
+fn image_fetch(image: image<T, dim_buffer, non_depth, non_arrayed, single_sampled, sampling_compatible, F, readable>,
+               coords:C,
+               image_operands: literal) -> vec4<T>
+
+implicit(T: fiu32, C: iu32, F: texel_format)
 fn image_fetch(image: image<T, dim_2d, non_depth, non_arrayed, single_sampled, sampling_compatible, F, readable>,
                coords: vec2<C>,
                image_operands: literal) -> vec4<T>

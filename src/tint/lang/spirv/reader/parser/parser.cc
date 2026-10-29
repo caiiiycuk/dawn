@@ -187,11 +187,13 @@ class Parser {
                 case spv::Capability::GroupNonUniformShuffleRelative:
                 case spv::Capability::GroupNonUniformVote:
                 case spv::Capability::Image1D:
+                case spv::Capability::ImageBuffer:
                 case spv::Capability::ImageQuery:
                 case spv::Capability::InputAttachment:
                 case spv::Capability::Matrix:
                 case spv::Capability::MultiView:
                 case spv::Capability::Sampled1D:
+                case spv::Capability::SampledBuffer:
                 case spv::Capability::SampledCubeArray:
                 case spv::Capability::SampleRateShading:
                 case spv::Capability::Shader:
@@ -883,7 +885,7 @@ class Parser {
 
                     TINT_ASSERT(img->dim() == spv::Dim::Dim1D || img->dim() == spv::Dim::Dim2D ||
                                 img->dim() == spv::Dim::Dim3D || img->dim() == spv::Dim::Cube ||
-                                img->dim() == spv::Dim::SubpassData);
+                                img->dim() == spv::Dim::Buffer || img->dim() == spv::Dim::SubpassData);
                     TINT_ASSERT(img->sampled() != 0);
                     TINT_ASSERT(depth != type::Depth::kDepth || sampled_ty->Is<core::type::F32>());
 
