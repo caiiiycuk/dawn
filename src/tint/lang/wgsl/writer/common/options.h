@@ -41,6 +41,9 @@ struct Options {
     bool allow_non_uniform_subgroup_operations = false;
     /// Set tot `true` to disable the unreachable code warning
     bool disable_unreachable_code_warning = false;
+    /// Set to `true` to enable chromium_disable_uniformity_analysis in the generated WGSL: the program is then
+    /// neither checked here nor by a consumer that allows the extension.
+    bool disable_uniformity_analysis = false;
     /// The extensions and language features that are allowed to be used in the generated WGSL.
     wgsl::AllowedFeatures allowed_features = {};
 
@@ -51,6 +54,7 @@ struct Options {
     TINT_REFLECT(Options,
                  allow_non_uniform_derivatives,
                  allow_non_uniform_subgroup_operations,
+                 disable_uniformity_analysis,
                  allowed_features,
                  minify);
 };

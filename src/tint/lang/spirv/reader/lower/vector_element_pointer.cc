@@ -27,6 +27,8 @@
 
 #include "src/tint/lang/spirv/reader/lower/vector_element_pointer.h"
 
+#include <string>
+
 #include "src/tint/lang/core/ir/builder.h"
 #include "src/tint/lang/core/ir/module.h"
 #include "src/tint/lang/core/ir/validator/validate.h"
@@ -56,8 +58,11 @@ struct State {
         const core::type::Type* type;
     };
 
+    /// The first unsupported use of a vector element pointer, empty when there is none.
+    std::string failure = {};
+
     /// Process the module.
-    void Process() {
+    Result<SuccessType> Process() {
         // Find the access instructions that need to be replaced.
         Vector<Access, 8> worklist;
         for (auto* inst : ir.Instructions()) {
@@ -90,7 +95,11 @@ struct State {
         // Replace the access instructions that we found.
         for (const auto& access : worklist) {
             ReplaceAccess(access);
+            if (!failure.empty()) {
+                return Failure(failure);
+            }
         }
+        return Success;
     }
 
     /// Replace an access instruction with {load,store}_vector_element instructions.
@@ -143,7 +152,10 @@ struct State {
                     sve->InsertBefore(store);
                     to_destroy.Push(store);
                 },
-                TINT_ICE_ON_NO_MATCH);
+                [&](core::ir::Instruction* other) {
+                    // An atomic or another builtin on a vector component: WGSL has no vector of atomics.
+                    failure = "unsupported use of a vector element pointer: " + std::string(other->FriendlyName());
+                });
         });
 
         // Clean up old instructions.
@@ -158,7 +170,10 @@ struct State {
 Result<SuccessType> VectorElementPointer(core::ir::Module& ir) {
     core::ir::AssertValid(ir, "before spirv.VectorElementPointer");
 
-    State{ir}.Process();
+    auto result = State{ir}.Process();
+    if (result != Success) {
+        return result.Failure();
+    }
 
     ir.properties.Remove(core::ir::Property::kAllowVectorElementPointer);
 

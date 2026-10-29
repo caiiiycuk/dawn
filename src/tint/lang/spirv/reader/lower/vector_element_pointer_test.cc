@@ -30,6 +30,7 @@
 #include <utility>
 
 #include "src/tint/lang/core/ir/transform/helper_test.h"
+#include "src/tint/lang/spirv/ir/builtin_call.h"
 
 namespace tint::spirv::reader::lower {
 namespace {
@@ -551,6 +552,29 @@ $B1: {  # root
     Run(VectorElementPointer);
 
     EXPECT_EQ(expect, str());
+}
+
+TEST_F(SpirvReader_VectorElementPointerTest, AtomicOnComponent_Fails) {
+    auto* str = ty.Struct(mod.symbols.New("str"), {
+                                                     {mod.symbols.New("vec"), ty.vec2u()},
+                                                 });
+    core::ir::Var* var = nullptr;
+    b.Append(mod.root_block, [&] {
+        var = b.Var("var", ty.ptr(storage, str, read_write));
+        var->SetBindingPoint(0, 0);
+    });
+
+    auto* foo = b.Function("foo", ty.void_());
+    b.Append(foo->Block(), [&] {
+        auto* access = b.Access<ptr<storage, u32, read_write>>(var, 0_u, 0_u);
+        b.Call<spirv::ir::BuiltinCall>(ty.u32(), spirv::BuiltinFn::kAtomicIAdd, access, 1_u, 0_u, 1_u);
+        b.Return(foo);
+    });
+
+    auto result = RunWithFailure(VectorElementPointer);
+    ASSERT_NE(result, Success);
+    EXPECT_EQ(result.Failure().reason,
+              "unsupported use of a vector element pointer: spirv.atomic_i_add");
 }
 
 }  // namespace

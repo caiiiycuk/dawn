@@ -147,6 +147,11 @@ class State {
             b.DiagnosticDirective(wgsl::DiagnosticSeverity::kOff,
                                   b.DiagnosticRuleName("chromium", "unreachable_code"));
         }
+        if (options.disable_uniformity_analysis) {
+            // Skip the uniformity analysis (barriers under conditions the source language allowed), here and in
+            // the consumer of the program, by enabling the extension.
+            Enable(wgsl::Extension::kChromiumDisableUniformityAnalysis);
+        }
 
         return Program{resolver::Resolve(b, options.allowed_features)};
     }
