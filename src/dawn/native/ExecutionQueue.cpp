@@ -230,6 +230,10 @@ MaybeError ExecutionQueueBase::UpdateCompletedSerial(QueuePriority priority) {
 
     DAWN_CHECK(completedSerial <=
                ExecutionSerial(mLastSubmittedSerial.load(std::memory_order_acquire)));
+    // A backend reports only the serials it can still observe (Vulkan: fences in flight, none once a higher
+    // priority call consumed them), so a lower priority processor that missed that call must still be told
+    // about everything the queue already knows is complete.
+    completedSerial = std::max(completedSerial, GetCompletedCommandSerial());
     UpdateCompletedSerialTo(priority, completedSerial);
     return {};
 }
